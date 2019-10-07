@@ -1,0 +1,213 @@
+###### Rahul Gandhi Tweet Analysis (2015-2018 speaches)#####
+setwd("D:/work_at_ATI/Akask_Banerjee_Project/Akash_banerjee")
+
+tweets=read.csv("2015_18_raga_Tweets.csv",quote = "",header = T, sep = ",",
+                row.names = NULL, 
+                stringsAsFactors = FALSE)
+View(tweets)
+str(tweets)
+typeof(tweets$Tweet.Text)
+length(tweets$Tweet.Text)
+length(!is.na(tweets$Tweet.Text))
+NROW(tweets$Tweet.Text)
+
+
+# Build Corpus
+library(wordcloud)
+library(tm)
+corpus=iconv(tweets$Tweet.Text,to ="latin1")     # Character conversion
+typeof(corpus)
+corpus=Corpus(VectorSource(corpus))
+inspect(corpus[1:5])
+
+# Clean text
+corpus=tm_map(corpus,tolower)
+inspect(corpus[1:5])
+corpus=tm_map(corpus,removePunctuation)
+inspect(corpus[1:5])
+corpus=tm_map(corpus,removeNumbers)
+inspect(corpus[1:5])
+cleanset=tm_map(corpus,removeWords,stopwords('english'))
+inspect(cleanset[1:5])
+cleanset=tm_map(cleanset,removeWords, c('and','the','our','that','for','are','also','more','has','must','have','should','this','with','will','spoke'))
+inspect(cleanset[1:5])
+removeURL=function(x) gsub('http[[:alnum:]]*','',x)
+cleanset=tm_map(cleanset,gsub,pattern='modi',replacement='modiji')
+cleanset=tm_map(cleanset,gsub,pattern='gujarat',replacement='guj')
+cleanset=tm_map(cleanset,gsub,pattern='modijiji',replacement='modiji')
+cleanset=tm_map(cleanset,gsub,pattern='farmer',replacement='kisan')
+cleanset=tm_map(cleanset,gsub,pattern='kisans',replacement='kisan')
+cleanset=tm_map(cleanset,gsub,pattern='ppl',replacement='people')
+
+cleanset <- tm_map(cleanset, stemDocument)
+cleanset=tm_map(cleanset,content_transformer(removeURL))
+inspect(cleanset[1:5])
+cleanset=tm_map(cleanset,stripWhitespace)
+inspect(cleanset[1:5])
+
+
+#Term Document Matrix
+tdm=TermDocumentMatrix(cleanset)
+tdm
+tdm=as.matrix(tdm)
+tdm[1:10,1:20]
+
+# BArplot
+w=rowSums(tdm)
+w
+sub1=subset(w,w>=50)
+sub1
+sub2 =subset(w,w>20)
+sub2
+sub= subset(w,w>100)
+sub
+p=sort(sub2,decreasing = T)
+p
+
+
+typeof(w)
+class(w)
+
+
+barplot(p,las=2,col=rainbow(50))
+
+
+names(w)
+typeof(w)
+
+
+
+# Word Cloud
+library(wordcloud)
+w=sort(rowSums(tdm),decreasing = T)
+View(w)
+
+set.seed(200)
+wordcloud(words = names(w),
+          freq = w,
+          max.words = 500,
+          random.order = F,
+          min.freq = 5,
+          colors = brewer.pal(8,'Dark2'),
+          rot.per = 0.3)
+
+install.packages("wordcloud2")
+library(wordcloud2)
+names(w)
+w
+w=data.frame(names(w),w) # ask sajan
+colnames(w)=c('word','freq')
+w1=as.data.frame(w)
+w2=as.data.frame(w)
+w1 =w1[1:150,]
+#wordfreq.csv=write.csv(w1)
+write.table(w1, file="wordfreqrahul.csv", row.names=FALSE, col.names=TRUE, sep=",", dec=".", quote=TRUE)
+
+write.table(w2, file="allfreqwordsrahul.csv", row.names=FALSE, col.names=TRUE, sep=",", dec=".", quote=TRUE)
+
+
+View(wordfreq5.csv) # ask sajan
+
+set.seed(100)
+wordcloud2(w1,
+           size = 0.5,
+           shape='circle',
+           rotateRatio = 1,
+           minSize = 1)
+           
+
+
+# Sentimental Analysis
+library(syuzhet)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(reshape2)
+library(dplyr)
+
+# Read file
+tweets=read.csv("2015_18_raga_Tweets.csv",quote = "",header = T, sep = ",",
+                row.names = NULL, 
+                stringsAsFactors = FALSE)
+corpus=iconv(tweets$Tweet.Text,to ="latin1")
+
+# Obtain Sentimental Scores
+s=get_nrc_sentiment(corpus)
+s
+ang=s$anger
+sum(ang)
+anti=s$anticipation
+sum(anti)
+dis=s$disgust
+sum(dis)
+fear=s$fear
+sum(fear)
+joy=s$joy
+sum(joy)
+sad=s$sadness
+sum(sad)
+sur=s$surprise
+sum(sur)
+trus=s$trust
+sum(trus)
+neg=s$negative
+sum(neg)
+pos=s$positive
+sum(pos)
+length(s$anger)
+length(s$anticipation)
+length(s$disgust)
+length(s$fear)
+length(s$joy)
+length(s$sadness)
+length(s$surprise)
+length(s$trust)
+length(s$negative)
+length(s$positive)
+
+head(s)
+corpus[4]
+get_nrc_sentiment("create")
+corpus[1]
+
+barplot(
+  sort(colSums(prop.table(s[, 1:10]))), 
+  horiz = TRUE, 
+  col=rainbow(10),
+  cex.names = 0.7, 
+  las = 1, 
+  main = "Emotions", xlab="Percentage"
+)
+barplot(
+  sort(colSums(prop.table(s[, 1:10]))), 
+  horiz = F, 
+  cex.names = 0.7, 
+  las = 1, 
+  main = "Emotions", xlab="Percentage"
+)
+
+
+
+
+
+# Bar Plot
+barplot(colSums(s),
+        las=2,
+        col=rainbow(10),
+        ylab = 'Count',
+        main = 'Sentiment Scores of raga Tweets from 2015 to 2018')
+
+# Most Popular Tweets of raga
+max(tweets$Tweet.Text,tweets$Replies,na.rm=T) #14701
+df=sort(tweets$Replies,decreasing = T)
+df
+typeof(df)
+
+max(tweets$Retweets) #30742
+max(tweets$Tweet.Text,tweets$Retweets,na.rm = T) 
+
+max(tweets$Tweet.Text,tweets$Favorites,na.rm = T)
+
+
+
+
