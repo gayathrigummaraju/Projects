@@ -1,0 +1,135 @@
+### Data Cleaning part###
+setwd("D:/KAGGLE/young_people_survey")
+Data = read.csv("responses.csv",na.strings=c(""," ","NA"))
+View(Data)
+
+Hobbies_Data = Data[,32:63]
+Personal_info = Data[ ,141:150]
+Movies = Data[ ,20:31]
+
+View(Hobbies_Data)
+View(Personal_info)
+
+#Basic understanding of the dataset
+
+install.packages("tidyverse")
+library(tidyverse)
+
+p = function(x){
+  a = ggplot(na.omit(Personal_info), aes_string(x)) + geom_bar(fill="#23b0db") + theme_bw() + 
+    theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+  return(a)
+}
+
+p1= p("Age")
+p2 = p("Height")
+p3 = p("Weight")
+p4 = p("Number.of.siblings")
+p5 = p("Gender")
+p6 = p("Left...right.handed") + scale_x_discrete(labels=c("left", "right"))
+
+p7 = p("Education") + scale_x_discrete(labels = c("Bachelor", "currently primary", "doctorate", "masters", "primary", "secondary")) + 
+  theme(axis.text.x = element_text(angle = 45))
+
+p8 = p("Only.child")
+
+p9 = p("Village...town")
+p10 = p("House...block.of.flats") + scale_x_discrete(labels = c("house", "flat"))
+
+install.packages("gridExtra")
+library(gridExtra)
+#grid.arrange(p1, p2, p3, p4, nrow=2)
+#grid.arrange(p5, p6, p8, p9, p10, p7, nrow=2)
+grid.arrange(p1, p2, p3, p4,p5, p6, p8, p9, p10, p7,nrow =3)
+
+
+save(Hobbies_Data,Personal_info,file="young_people_survey.rda")
+#####n clustering part####
+
+load(file="data_prep_young.rda")
+#Clustering on hobbies and personal information
+hob_per<- cbind(Hobbies_Data,Personal_info,Movies)
+hob_per =na.omit(hob_per)
+View()
+colnames(Hobbies_Data)
+
+hobscale =scale(hob_per[,-1],center=TRUE,scale =TRUE)
+hobscale
+set.seed(1)
+disma= dist(hob_per)
+
+
+set.seed(100)
+hc2= hclust(disma,method = "complete")
+plot(hc2,main = "Hclust-complete")
+
+
+#this is showing the better cluster group
+set.seed(100)
+hc3 = hclust(disma,method = "ward.D2")
+plot(hc3)
+hob_per$cluster2 = cutree(hc3,k=4)
+
+set.seed(100)
+hc4=hclust((disma*disma),method ="ward.D")
+plot(hc4)
+
+
+View(hob_per)
+library(cluster)
+clusplot(hob_per,hob_per$cluster2,color=TRUE, shade=TRUE,
+         labels=4, lines=0, main="hclust plot")
+#too much of overlapping, 
+
+#kmeans
+#to decide the number of clusters we can choose nbclust
+
+library("factoextra")
+fviz_nbclust(hobscale, kmeans, method = "gap_stat")
+
+set.seed(1)
+km = kmeans(hobscale,2)
+
+hob_per$km = km$cluster
+
+clusplot(hob_per, km$cluster,color=TRUE, shade=TRUE,
+         labels=4, lines=0, main="K-means cluster plot")
+#gave better insights
+
+View(hob_per)
+table(c=hob_per$cluster2,k=hob_per$km)
+
+
+
+#factor Analysis
+set.seed(1)
+fc = factanal(hobscale,factors = 4,rotation = "varimax",scores = "regression")
+View(fc)
+fc$loadings
+
+new_finding = cbind(hob_per,fc$scores)
+View(new_finding)
+
+#factor1: pschycology,reading,writing, art and exhibitions,theater,musical instruments
+#factor2: anderline sports, active in sports,cars,pc,internet
+#factor3: biology,chemistry,medicine
+#factor4:physics,mathematics,scienceand technology
+
+
+##profiling
+boxplot(new_finding$Factor1 ~ hob_per$km)
+boxplot(new_finding$Factor2 ~ hob_per$km)
+boxplot(new_finding$Factor3 ~ hob_per$km)
+boxplot(new_finding$Factor4 ~ hob_per$km)
+
+table(g=hob_per$Gender,hob_per$km)
+table(edu=hob_per$Educationbin,hob_per$km)
+table(age=hob_per$Agebin,hob_per$km)
+
+
+# the people who are interested in sports are mostly males,of secondary education of age 19-23
+# they are  interested internet,pc,science and technology 
+# they can be sent mails, or send adds through apps
+#what kind of apps?, 
+#Also like to have funwith friends.
+# through facebook,sharechat,insta,social media apps.
